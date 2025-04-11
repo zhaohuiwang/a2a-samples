@@ -15,6 +15,7 @@ from common.types import (
 )
 from utils.agent_card import get_agent_card
 from service.server.application_manager import ApplicationManager
+from service.server import test_image
 
 class InMemoryFakeAgentManager(ApplicationManager):
   """An implementation of memory based management with fake agent actions
@@ -39,6 +40,7 @@ class InMemoryFakeAgentManager(ApplicationManager):
     self._pending_message_ids = []
     self._next_message_idx = 0
     self._agents = []
+    self._task_map = {}
 
   def create_conversation(self) -> Conversation:
     conversation_id = str(uuid.uuid4())
@@ -54,7 +56,8 @@ class InMemoryFakeAgentManager(ApplicationManager):
 
   async def process_message(self, message: Message):
     self._messages.append(message)
-    self._pending_message_ids.append(message.metadata['message_id'])
+    message_id = message.metadata['message_id']
+    self._pending_message_ids.append(message_id)
     conversation_id = (
         message.metadata['conversation_id']
         if 'conversation_id' in message.metadata
@@ -74,17 +77,18 @@ class InMemoryFakeAgentManager(ApplicationManager):
     # for the message response and the updated message information for the
     # incoming message (with ids attached).
     task_id = str(uuid.uuid4())
-    if self._next_message_idx != 0:
-      self.add_task(
-          Task(
+    task = Task(
               id=task_id,
               sessionId=conversation_id,
               status=TaskStatus(
                   state=TaskState.SUBMITTED,
                   message=message,
               ),
+              history=[message],
           )
-      )
+    if self._next_message_idx != 0:
+      self._task_map[message_id] = task_id
+      self.add_task(task)
     await asyncio.sleep(self._next_message_idx)
     response = self.next_message()
     response.metadata = {**message.metadata, **{'message_id': str(uuid.uuid4())}}
@@ -98,10 +102,10 @@ class InMemoryFakeAgentManager(ApplicationManager):
     ))
     self._pending_message_ids.remove(message.metadata['message_id'])
     # Now clean up the task
-    task = next(filter(lambda x: x.id == task_id, self.tasks), None)
     if task:
       task.status.state = TaskState.COMPLETED
       task.artifacts = [Artifact(name="response", parts=response.parts)]
+      task.history.append(response)
       self.update_task(task)
 
   def add_task(self, task: Task):
@@ -131,7 +135,25 @@ class InMemoryFakeAgentManager(ApplicationManager):
         filter(lambda c: c.conversation_id == conversation_id,
                self._conversations), None)
 
-  def get_pending_messages(self) -> list[str]:
+  def get_pending_messages(self) -> list[Tuple[str,str]]:
+    rval = []
+    for message_id in self._pending_message_ids:
+      if message_id in self._task_map:
+        task_id = self._task_map[message_id]
+        task = next(filter(lambda x: x.id == task_id, self._tasks), None)
+        if not task:
+          rval.append((message_id, ""))
+        elif task.history and task.history[-1].parts:
+          if len(task.history) == 1:
+            rval.append((message_id, "Working..."))
+          else:
+            part = task.history[-1].parts[0]
+            rval.append((
+                message_id,
+                part.text if part.type == "text" else "Working..."))
+      else:
+        rval.append((message_id, ""))
+      return rval
     return self._pending_message_ids
 
   def register_agent(self, url):
@@ -189,5 +211,6 @@ _message_queue: list[Message] = [
         ),
     ]),
     Message(role="agent", parts=[TextPart(text="I like cats")]),
+    test_image.test_image,
     Message(role="agent", parts=[TextPart(text="And I like dogs")]),
 ]

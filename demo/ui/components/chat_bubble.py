@@ -46,8 +46,10 @@ def chat_box(
                 gap=5)
         ):
             if media_type == "image/png":
+                if "/message/file" not in content:
+                  content = "data:image/png;base64," + content
                 me.image(
-                    src="data:image/png;base64," + content,
+                    src=content,
                     style=me.Style(
                         width="50%",
                         object_fit="contain",

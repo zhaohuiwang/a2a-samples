@@ -1,13 +1,15 @@
 import asyncio
+import base64
 import threading
 import os
+import uuid
 from typing import Any
 from fastapi import APIRouter
-from fastapi import Request
-from common.types import Message, Task
+from fastapi import Request, Response
+from common.types import Message, Task, FilePart, FileContent
 from .in_memory_manager import InMemoryFakeAgentManager
 from .application_manager import ApplicationManager
-from .adk_host_manager import ADKHostManager
+from .adk_host_manager import ADKHostManager, get_message_id
 from service.types import (
     Conversation,
     Event,
@@ -36,6 +38,8 @@ class ConversationServer:
       self.manager = ADKHostManager()
     else:
       self.manager = InMemoryFakeAgentManager()
+    self._file_cache = {} # dict[str, FilePart] maps file id to message data
+    self._message_to_cache = {} # dict[str, str] maps message id to cache id
 
     router.add_api_route(
         "/conversation/create",
@@ -73,6 +77,10 @@ class ConversationServer:
         "/agent/list",
         self._list_agents,
         methods=["POST"])
+    router.add_api_route(
+        "/message/file/{file_id}",
+        self._files,
+        methods=["GET"])
 
 
   def _create_conversation(self):
@@ -95,8 +103,40 @@ class ConversationServer:
     conversation_id = message_data['params']
     conversation = self.manager.get_conversation(conversation_id)
     if conversation:
-      return ListMessageResponse(result=conversation.messages)
+      return ListMessageResponse(result=self.cache_content(
+          conversation.messages))
     return ListMessageResponse(result=[])
+
+  def cache_content(self, messages: list[Message]):
+    rval = []
+    for m in messages:
+      message_id = get_message_id(m)
+      if not message_id:
+        rval.append(m)
+        continue
+      new_parts = []
+      for i, part in enumerate(m.parts):
+        if part.type != 'file':
+          new_parts.append(part)
+          continue
+        message_part_id = f"{message_id}:{i}"
+        if message_part_id in self._message_to_cache:
+          cache_id = self._message_to_cache[message_part_id]
+        else:
+          cache_id = str(uuid.uuid4())
+          self._message_to_cache[message_part_id] = cache_id
+        # Replace the part data with a url reference
+        new_parts.append(FilePart(
+            file=FileContent(
+                mimeType=part.file.mimeType,
+                uri=f"/message/file/{cache_id}",
+            )
+        ))
+        if cache_id not in self._file_cache:
+          self._file_cache[cache_id] = part
+      m.parts = new_parts
+      rval.append(m)
+    return rval
 
   async def _pending_messages(self):
     return PendingMessageResponse(result=self.manager.get_pending_messages())
@@ -119,3 +159,12 @@ class ConversationServer:
   async def _list_agents(self):
     return ListAgentResponse(result=self.manager.agents)
 
+  def _files(self, file_id):
+    if file_id not in self._file_cache:
+      raise Exception("file not found")
+    part = self._file_cache[file_id]
+    if "image" in part.file.mimeType:
+      return Response(
+          content=base64.b64decode(part.file.bytes),
+          media_type=part.file.mimeType)
+    return Response(content=part.file.bytes, media_type=part.file.mimeType)
