@@ -102,7 +102,7 @@ def render_form_card(message: StateMessage, data: dict[str, Any] | None):
     style=me.Style(
       padding=me.Padding.all(BOX_PADDING),
       max_width="75vw",
-      background="whitesmoke",
+      background=me.theme_var("surface"),
       border_radius=15,
       margin=me.Margin(top=5, bottom=20, left=5, right=5),
       justify_content=(
@@ -172,7 +172,7 @@ def render_structure(id: str, elements: list[FormElement], instructions: str):
     style=me.Style(
       padding=me.Padding.all(BOX_PADDING),
       max_width="75vw",
-      background="whitesmoke",
+      background=me.theme_var("surface"),
       border_radius=15,
       margin=me.Margin(top=5, bottom=20, left=5, right=5),
       box_shadow=("0 1px 2px 0 rgba(60, 64, 67, 0.3), "
