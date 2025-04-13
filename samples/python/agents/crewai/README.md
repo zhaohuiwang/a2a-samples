@@ -70,7 +70,11 @@ sequenceDiagram
 5. In a separate terminal, run the A2A client:
 
    ```bash
-   uv run hosts/cli
+   # Connect to the agent (specify the agent URL with correct port)
+   uv run hosts/cli --agent http://localhost:10001
+   
+   # If you changed the port when starting the agent, use that port instead
+   # uv run hosts/cli --agent http://localhost:YOUR_PORT
    ```
 
 ## Features & Improvements
