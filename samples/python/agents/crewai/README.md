@@ -69,8 +69,9 @@ sequenceDiagram
 
 5. In a separate terminal, run the A2A client:
 
+   `crewai's default Port is 10001`
    ```bash
-   uv run hosts/cli
+   uv run hosts/cli --agent http://localhost:10001
    ```
 
 ## Features & Improvements
