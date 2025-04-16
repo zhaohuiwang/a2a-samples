@@ -437,8 +437,10 @@ class ADKHostManager(ApplicationManager):
         ))
       elif part.file_data:
         parts.append(FilePart(
-            uri=part.file_data.file_uri,
-            mimeType=part.file_data.mime_type
+            file=FileContent(
+                uri=part.file_data.file_uri,
+                mimeType=part.file_data.mime_type
+            )
         ))
       # These aren't managed by the A2A message structure, these are internal
       # details of ADK, we will simply flatten these to json representations.
@@ -451,38 +453,7 @@ class ADKHostManager(ApplicationManager):
       elif part.function_call:
         parts.append(DataPart(data=part.function_call.model_dump()))
       elif part.function_response:
-        # Unnest response
-        try:
-          for p in part.function_response.response['result']:
-            if isinstance(p, str):
-              parts.append(TextPart(text=p))
-            elif isinstance(p, dict):
-              if 'type' in p and p['type'] == 'file':
-                parts.append(FilePart(**p))
-              else:
-                parts.append(DataPart(data=p))
-            elif isinstance(p, DataPart):
-              # If there is an artifact in the response, fetch it and add to parts.
-              if('artifact-file-id' in p.data):
-                file_part = self._artifact_service.load_artifact(user_id=self.user_id,
-                                                              session_id=conversation_id,
-                                                              app_name=self.app_name,
-                                                              filename = p.data['artifact-file-id'])
-                file_data = file_part.inline_data
-                base64_data = base64.b64encode(file_data.data).decode('utf-8')
-                parts.append(FilePart(
-                  file=FileContent(
-                      bytes=base64_data, mimeType=file_data.mime_type, name='artifact_file'
-                  )
-                ))
-              else:
-                parts.append(DataPart(data=p.data))
-            else:
-              # Not sure what this is, treat it like a json string.
-              parts.append(TextPart(text=json.dumps(p)))
-        except Exception as e:
-          print("Couldn't convert to messages:", e)
-          parts.append(DataPart(data=part.function_response.model_dump()))
+        parts.extend(self._handle_function_response(part, conversation_id))
       else:
         raise ValueError("Unexpected content, unknown type")
     return Message(
@@ -490,6 +461,39 @@ class ADKHostManager(ApplicationManager):
         parts=parts,
         metadata={'conversation_id': conversation_id},
     )
+
+  def _handle_function_response(self, part: types.Part, conversation_id: str) -> list[Part]:
+    parts = []
+    try:
+      for p in part.function_response.response['result']:
+        if isinstance(p, str):
+          parts.append(TextPart(text=p))
+        elif isinstance(p, dict):
+          if 'type' in p and p['type'] == 'file':
+            parts.append(FilePart(**p))
+          else:
+            parts.append(DataPart(data=p))
+        elif isinstance(p, DataPart):
+          if 'artifact-file-id' in p.data:
+            file_part = self._artifact_service.load_artifact(user_id=self.user_id,
+                                                          session_id=conversation_id,
+                                                          app_name=self.app_name,
+                                                          filename = p.data['artifact-file-id'])
+            file_data = file_part.inline_data
+            base64_data = base64.b64encode(file_data.data).decode('utf-8')
+            parts.append(FilePart(
+              file=FileContent(
+                  bytes=base64_data, mimeType=file_data.mime_type, name='artifact_file'
+              )
+            ))
+          else:
+            parts.append(DataPart(data=p.data))
+        else:
+          parts.append(TextPart(text=json.dumps(p)))
+    except Exception as e:
+      print("Couldn't convert to messages:", e)
+      parts.append(DataPart(data=part.function_response.model_dump()))
+    return parts
 
 def get_message_id(m: Message | None) -> str  | None:
   if not m or not m.metadata or 'message_id' not in m.metadata:
