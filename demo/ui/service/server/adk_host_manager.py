@@ -194,7 +194,8 @@ class ADKHostManager(ApplicationManager):
         self._tasks[i] = task
         return
 
-  def task_callback(self, task: TaskCallbackArg):
+  def task_callback(self, task: TaskCallbackArg, agent_card: AgentCard):
+    self.emit_event(task, agent_card)
     if isinstance(task, TaskStatusUpdateEvent):
       current_task = self.add_or_get_task(task)
       current_task.status = task.status
@@ -219,6 +220,49 @@ class ADKHostManager(ApplicationManager):
       self.insert_id_trace(task.status.message)
       self.update_task(task)
       return task
+
+  def emit_event(self, task: TaskCallbackArg, agent_card: AgentCard):
+    content = None
+    conversation_id = get_conversation_id(task)
+    metadata = {'conversation_id': conversation_id} if conversation_id else None
+    if isinstance(task, TaskStatusUpdateEvent):
+      if task.status.message:
+        content = task.status.message
+      else:
+        content = Message(
+          parts=[TextPart(text=str(task.status.state))],
+          role="agent",
+          metadata=metadata,
+        )
+    elif isinstance(task, TaskArtifactUpdateEvent):
+      content = Message(
+          parts=task.artifact.parts,
+          role="agent",
+          metadata=metadata,
+      )
+    elif task.status and task.status.message:
+      content = task.status.message
+    elif task.artifacts:
+      parts = []
+      for a in task.artifacts:
+        parts.extend(a.parts)
+      content = Message(
+          parts=parts,
+          role="agent",
+          metadata=metadata,
+      )
+    else:
+      content = Message(
+          parts=[TextPart(text=str(task.status.state))],
+          role="agent",
+          metadata=metadata,
+      )
+    self.add_event(Event(
+          id=str(uuid.uuid4()),
+          actor=agent_card.name,
+          content=content,
+          timestamp=datetime.datetime.utcnow().timestamp(),
+    ))
 
   def attach_message_to_task(self, message: Message | None, task_id: str):
     if message and message.metadata and 'message_id' in message.metadata:
@@ -456,6 +500,20 @@ def get_last_message_id(m: Message | None) -> str | None:
   if not m or not m.metadata or 'last_message_id' not in m.metadata:
     return None
   return m.metadata['last_message_id']
+
+def get_conversation_id(
+    t: (Task |
+        TaskStatusUpdateEvent |
+        TaskArtifactUpdateEvent |
+        Message |
+        None)
+) -> str | None:
+  if (t and
+      hasattr(t, 'metadata') and
+      t.metadata and
+      'conversation_id' in t.metadata):
+    return t.metadata['conversation_id']
+  return None
 
 def task_still_open(task: Task | None) -> bool:
   if not task:
