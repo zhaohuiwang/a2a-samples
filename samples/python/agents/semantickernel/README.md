@@ -41,7 +41,7 @@ sequenceDiagram
 ## Prerequisites
 
 - Python 3.10 or higher
-- uv
+- [uv](https://docs.astral.sh/uv/)
 - Valid OpenAI/Azure OpenAI or other LLM credentials (depending on your SK setup). See [here](https://learn.microsoft.com/en-us/semantic-kernel/concepts/ai-services/chat-completion/?tabs=csharp-AzureOpenAI%2Cpython-AzureOpenAI%2Cjava-AzureOpenAI&pivots=programming-language-python#creating-a-chat-completion-service) for more details about Semantic Kernel AI connectors that are used with a ChatCompletionAgent.
 - Access to a Frankfurter API key (optional, or you can call the free endpoint)
 

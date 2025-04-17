@@ -32,7 +32,7 @@ sequenceDiagram
 ## Prerequisites
 
 - Python 3.12 or higher
-- UV package manager (recommended)
+- [UV](https://docs.astral.sh/uv/) package manager (recommended)
 - Google API Key (for Gemini access)
 
 ## Setup & Running

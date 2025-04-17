@@ -51,7 +51,7 @@ sequenceDiagram
 ## Prerequisites
 
 - Python 3.13 or higher
-- UV
+- [UV](https://docs.astral.sh/uv/)
 - Access to an LLM and API Key
 
 ## Setup & Running
