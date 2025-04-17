@@ -26,6 +26,7 @@ members = [
     "agents/langgraph",
     "hosts/cli",
     "hosts/multiagent",
+    "agents/llama_index_file_chat",
     "agents/semantickernel",
 ]
 
