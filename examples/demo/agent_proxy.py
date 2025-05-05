@@ -6,23 +6,23 @@ from a2a.server import AgentProxy
 from a2a.types import (
     Artifact,
     CancelTaskRequest,
-    CancelTaskSuccessResponse,
+    CancelTaskResponse,
     JSONRPCErrorResponse,
     SendTaskRequest,
+    SendTaskResponse,
     SendTaskStreamingRequest,
     SendTaskStreamingResponse,
     SendTaskStreamingSuccessResponse,
     SendTaskSuccessResponse,
     Task,
     TaskArtifactUpdateEvent,
-    TaskNotCancelableError,
     TaskResubscriptionRequest,
     TaskState,
     TaskStatus,
     TaskStatusUpdateEvent,
     UnsupportedOperationError,
 )
-from a2a.utils import get_text_artifact
+from a2a.utils import build_text_artifact
 
 
 class FakeAgent:
@@ -45,17 +45,19 @@ class TestAgentProxy(AgentProxy):
 
     async def on_send(
         self, task: Task, request: SendTaskRequest
-    ) -> SendTaskSuccessResponse | JSONRPCErrorResponse:
+    ) -> SendTaskResponse:
         result = await self.agent.invoke()
 
         if not task.artifacts:
             task.artifacts = []
 
-        artifact: Artifact = get_text_artifact(result, len(task.artifacts))
+        artifact: Artifact = build_text_artifact(result, len(task.artifacts))
         task.artifacts.append(artifact)
         task.status.state = TaskState.completed
 
-        return SendTaskSuccessResponse(id=request.id, result=task)
+        return SendTaskResponse(
+            root=SendTaskSuccessResponse(id=request.id, result=task)
+        )
 
     async def on_send_subscribe(  # type: ignore
         self, task: Task, request: SendTaskStreamingRequest
@@ -67,7 +69,7 @@ class TestAgentProxy(AgentProxy):
         async for chunk in self.agent.stream():
             artifact_update = TaskArtifactUpdateEvent(
                 id=task.id,
-                artifact=get_text_artifact(chunk, new_index),
+                artifact=build_text_artifact(chunk, new_index),
                 append=i > 0,
                 lastChunk=False,  # TODO: set this value, but is this needed?
             )
@@ -91,9 +93,11 @@ class TestAgentProxy(AgentProxy):
 
     async def on_cancel(
         self, task: Task, request: CancelTaskRequest
-    ) -> CancelTaskSuccessResponse | JSONRPCErrorResponse:
-        return JSONRPCErrorResponse(
-            id=request.id, error=TaskNotCancelableError()
+    ) -> CancelTaskResponse:
+        return CancelTaskResponse(
+            root=JSONRPCErrorResponse(
+                id=request.id, error=UnsupportedOperationError()
+            )
         )
 
     async def on_resubscribe(  # type: ignore
