@@ -4,10 +4,10 @@ import sys
 import click
 
 from agent import CurrencyAgent
-from agent_proxy import CurrencyAgentProxy
+from agent_executor import CurrencyAgentExecutor
 from dotenv import load_dotenv
 
-from a2a.server import A2AServer, DefaultA2ARequestHandler
+from a2a.server import A2AServer, DefaultA2ARequestHandler, InMemoryTaskStore
 from a2a.types import (
     AgentAuthentication,
     AgentCapabilities,
@@ -27,7 +27,12 @@ def main(host: str, port: int):
         print('GOOGLE_API_KEY environment variable not set.')
         sys.exit(1)
 
-    request_handler = DefaultA2ARequestHandler(agent_proxy=CurrencyAgentProxy())
+    task_store = InMemoryTaskStore()
+
+    request_handler = DefaultA2ARequestHandler(
+        agent_executor=CurrencyAgentExecutor(task_store=task_store),
+        task_store=task_store,
+    )
 
     server = A2AServer(
         agent_card=get_agent_card(host, port), request_handler=request_handler
@@ -36,6 +41,7 @@ def main(host: str, port: int):
 
 
 def get_agent_card(host: str, port: int):
+    """Returns the Agent Card for the Currency Agent."""
     capabilities = AgentCapabilities(streaming=True, pushNotifications=True)
     skill = AgentSkill(
         id='convert_currency',
@@ -44,7 +50,7 @@ def get_agent_card(host: str, port: int):
         tags=['currency conversion', 'currency exchange'],
         examples=['What is exchange rate between USD and GBP?'],
     )
-    agent_card = AgentCard(
+    return AgentCard(
         name='Currency Agent',
         description='Helps with exchange rates for currencies',
         url=f'http://{host}:{port}/',
@@ -55,7 +61,6 @@ def get_agent_card(host: str, port: int):
         skills=[skill],
         authentication=AgentAuthentication(schemes=['public']),
     )
-    return agent_card
 
 
 if __name__ == '__main__':
