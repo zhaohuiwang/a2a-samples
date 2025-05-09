@@ -53,7 +53,7 @@ class CurrencyAgentExecutor(BaseAgentExecutor):
         event_queue: EventQueue,
         task: Task | None,
     ) -> None:
-        """Handler for 'message/sendStream' requests."""
+        """Handler for 'message/stream' requests."""
         params: MessageSendParams = request.params
         query = self._get_user_query(params)
 
