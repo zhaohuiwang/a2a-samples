@@ -8,8 +8,9 @@ from agent_executor import CurrencyAgentExecutor
 from dotenv import load_dotenv
 
 
-from a2a.server.request_handlers import DefaultA2ARequestHandler
-from a2a.server import A2AServer
+from a2a.server.request_handlers import DefaultRequestHandler
+from a2a.server.tasks import InMemoryTaskStore
+from a2a.server.apps import A2AStarletteApplication
 from a2a.types import (
     AgentAuthentication,
     AgentCapabilities,
@@ -29,14 +30,17 @@ def main(host: str, port: int):
         print('GOOGLE_API_KEY environment variable not set.')
         sys.exit(1)
 
-    request_handler = DefaultA2ARequestHandler(
-        agent_executor=CurrencyAgentExecutor()
+    request_handler = DefaultRequestHandler(
+        agent_executor=CurrencyAgentExecutor(),
+        task_store=InMemoryTaskStore(),
     )
 
-    server = A2AServer(
-        agent_card=get_agent_card(host, port), request_handler=request_handler
-    )
-    server.start(host=host, port=port)
+    server = A2AStarletteApplication(
+        agent_card=get_agent_card(host, port),
+        http_handler=request_handler)
+    import uvicorn
+
+    uvicorn.run(server.build(), host=host, port=port)
 
 
 def get_agent_card(host: str, port: int):

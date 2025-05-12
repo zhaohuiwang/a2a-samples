@@ -94,11 +94,6 @@ class CurrencyAgent:
             response_format=(self.RESPONSE_FORMAT_INSTRUCTION, ResponseFormat),
         )
 
-    def invoke(self, query: str, sessionId: str) -> dict[str, Any]:
-        config: RunnableConfig = {'configurable': {'thread_id': sessionId}}
-        self.graph.invoke({'messages': [('user', query)]}, config)
-        return self.get_agent_response(config)
-
     async def stream(
         self, query: str, sessionId: str
     ) -> AsyncIterable[dict[str, Any]]:

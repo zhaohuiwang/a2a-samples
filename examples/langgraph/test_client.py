@@ -9,6 +9,7 @@ from a2a.types import (
     TaskState,
 )
 import httpx
+import traceback
 
 AGENT_URL = 'http://localhost:10000'
 
@@ -139,6 +140,7 @@ async def main() -> None:
             await run_multi_turn_test(client)
 
     except Exception as e:
+        traceback.print_exc()
         print(f'An error occurred: {e}')
         print('Ensure the agent server is running.')
 
