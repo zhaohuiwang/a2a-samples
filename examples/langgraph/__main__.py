@@ -36,8 +36,8 @@ def main(host: str, port: int):
     )
 
     server = A2AStarletteApplication(
-        agent_card=get_agent_card(host, port),
-        http_handler=request_handler)
+        agent_card=get_agent_card(host, port), http_handler=request_handler
+    )
     import uvicorn
 
     uvicorn.run(server.build(), host=host, port=port)
