@@ -1,19 +1,16 @@
-from typing import Any
-
 from agent import CurrencyAgent
 from typing_extensions import override
 
 from a2a.server.agent_execution import AgentExecutor, RequestContext
-from a2a.server.events.event_queue import EventQueue, Event
-from a2a.utils import new_agent_text_message, new_text_artifact, new_task
+from a2a.server.events.event_queue import EventQueue
 from a2a.types import (
     Task,
-    TextPart,
-    TaskStatusUpdateEvent,
     TaskArtifactUpdateEvent,
-    TaskStatus,
     TaskState,
+    TaskStatus,
+    TaskStatusUpdateEvent,
 )
+from a2a.utils import new_agent_text_message, new_task, new_text_artifact
 
 
 class CurrencyAgentExecutor(AgentExecutor):
@@ -30,6 +27,9 @@ class CurrencyAgentExecutor(AgentExecutor):
     ) -> None:
         query = context.get_user_input()
         task = context.current_task
+
+        if not context.message:
+            raise Exception('No message provided')
 
         if not task:
             task = new_task(context.message)
@@ -92,6 +92,7 @@ class CurrencyAgentExecutor(AgentExecutor):
                 )
 
     @override
-    async def cancel(self, request: RequestContext, event_queue: EventQueue) -> Task | None:
-        raise Exception("cancel not supported")
-
+    async def cancel(
+        self, request: RequestContext, event_queue: EventQueue
+    ) -> Task | None:
+        raise Exception('cancel not supported')
