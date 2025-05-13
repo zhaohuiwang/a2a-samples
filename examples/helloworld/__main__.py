@@ -1,8 +1,8 @@
 from agent_executor import HelloWorldAgentExecutor
 
+from a2a.server.apps import A2AStarletteApplication
 from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.tasks import InMemoryTaskStore
-from a2a.server.apps import A2AStarletteApplication
 from a2a.types import (
     AgentAuthentication,
     AgentCapabilities,
