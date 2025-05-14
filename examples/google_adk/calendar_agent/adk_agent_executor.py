@@ -1,8 +1,8 @@
 import asyncio
 import logging
+
 from collections import namedtuple
 from collections.abc import AsyncGenerator
-from typing import Dict
 from urllib.parse import parse_qs, urlparse
 
 from google.adk import Runner
@@ -27,6 +27,7 @@ from a2a.types import (
 from a2a.utils.errors import ServerError
 from a2a.utils.message import new_agent_text_message
 
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
@@ -42,7 +43,7 @@ auth_receive_timeout_seconds = 60
 class ADKAgentExecutor(AgentExecutor):
     """An AgentExecutor that runs an ADK-based Agent."""
 
-    _awaiting_auth: Dict[str, asyncio.Future]
+    _awaiting_auth: dict[str, asyncio.Future]
 
     def __init__(self, runner: Runner, card: AgentCard):
         self.runner = runner
@@ -62,7 +63,7 @@ class ADKAgentExecutor(AgentExecutor):
         new_message: types.Content,
         session_id: str,
         task_updater: TaskUpdater,
-    ):
+    ) -> None:
         session_id = self._upsert_session(
             session_id,
         ).id
@@ -95,13 +96,13 @@ class ADKAgentExecutor(AgentExecutor):
                 # Break out of event handling loop -- no more work will be done until the authorization
                 # is received.
                 break
-            elif event.is_final_response():
+            if event.is_final_response():
                 parts = convert_genai_parts_to_a2a(event.content.parts)
                 logger.debug('Yielding final response: %s', parts)
                 task_updater.add_artifact(parts)
                 task_updater.complete()
                 break
-            elif not event.get_function_calls():
+            if not event.get_function_calls():
                 logger.debug('Yielding update response')
                 task_updater.update_status(
                     TaskState.working,
@@ -159,7 +160,7 @@ class ADKAgentExecutor(AgentExecutor):
         session_id: str,
         auth_details: ADKAuthDetails,
         task_updater: TaskUpdater,
-    ):
+    ) -> None:
         logger.debug('Waiting for auth event')
         try:
             auth_uri = await asyncio.wait_for(
@@ -236,36 +237,34 @@ class ADKAgentExecutor(AgentExecutor):
 
 
 def convert_a2a_parts_to_genai(parts: list[Part]) -> list[types.Part]:
-    """Convert a list of A2A Part types into a list of Google GenAI Part types."""
+    """Convert a list of A2A Part types into a list of Google Gen AI Part types."""
     return [convert_a2a_part_to_genai(part) for part in parts]
 
 
 def convert_a2a_part_to_genai(part: Part) -> types.Part:
-    """Convert a single A2A Part type into a Google GenAI Part type."""
+    """Convert a single A2A Part type into a Google Gen AI Part type."""
     part = part.root
     if isinstance(part, TextPart):
         return types.Part(text=part.text)
-    elif isinstance(part, FilePart):
+    if isinstance(part, FilePart):
         if isinstance(part.file, FileWithUri):
             return types.Part(
                 file_data=types.FileData(
                     file_uri=part.file.uri, mime_type=part.file.mime_type
                 )
             )
-        elif isinstance(part.file, FileWithBytes):
+        if isinstance(part.file, FileWithBytes):
             return types.Part(
                 inline_data=types.Blob(
                     data=part.file.bytes, mime_type=part.file.mime_type
                 )
             )
-        else:
-            raise ValueError(f'Unsupported file type: {type(part.file)}')
-    else:
-        raise ValueError(f'Unsupported part type: {type(part)}')
+        raise ValueError(f'Unsupported file type: {type(part.file)}')
+    raise ValueError(f'Unsupported part type: {type(part)}')
 
 
 def convert_genai_parts_to_a2a(parts: list[types.Part]) -> list[Part]:
-    """Convert a list of Google GenAI Part types into a list of A2A Part types."""
+    """Convert a list of Google Gen AI Part types into a list of A2A Part types."""
     return [
         convert_genai_part_to_a2a(part)
         for part in parts
@@ -274,17 +273,17 @@ def convert_genai_parts_to_a2a(parts: list[types.Part]) -> list[Part]:
 
 
 def convert_genai_part_to_a2a(part: types.Part) -> Part:
-    """Convert a single Google GenAI Part type into an A2A Part type."""
+    """Convert a single Google Gen AI Part type into an A2A Part type."""
     if part.text:
         return TextPart(text=part.text)
-    elif part.file_data:
+    if part.file_data:
         return FilePart(
             file=FileWithUri(
                 uri=part.file_data.file_uri,
                 mime_type=part.file_data.mime_type,
             )
         )
-    elif part.inline_data:
+    if part.inline_data:
         return Part(
             root=FilePart(
                 file=FileWithBytes(
@@ -293,14 +292,13 @@ def convert_genai_part_to_a2a(part: types.Part) -> Part:
                 )
             )
         )
-    else:
-        raise ValueError(f'Unsupported part type: {part}')
+    raise ValueError(f'Unsupported part type: {part}')
 
 
 def get_auth_request_function_call(event: Event) -> types.FunctionCall:
-    """Get the special auth request function call from the event"""
+    """Get the special auth request function call from the event."""
     if not (event.content and event.content.parts):
-        return
+        return None
     for part in event.content.parts:
         if (
             part
@@ -310,12 +308,13 @@ def get_auth_request_function_call(event: Event) -> types.FunctionCall:
             and part.function_call.id in event.long_running_tool_ids
         ):
             return part.function_call
+    return None
 
 
 def get_auth_config(
     auth_request_function_call: types.FunctionCall,
 ) -> AuthConfig:
-    """Extracts the AuthConfig object from the arguments of the auth request function call"""
+    """Extracts the AuthConfig object from the arguments of the auth request function call."""
     if not auth_request_function_call.args or not (
         auth_config := auth_request_function_call.args.get('auth_config')
     ):
