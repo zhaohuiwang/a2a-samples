@@ -1,32 +1,31 @@
 import asyncio
 import logging
-
-from collections.abc import AsyncGenerator
 from collections import namedtuple
+from collections.abc import AsyncGenerator
 from typing import Dict
+from urllib.parse import parse_qs, urlparse
 
-from a2a.server.agent_execution.context import RequestContext
+from google.adk import Runner
+from google.adk.auth import AuthConfig
+from google.adk.events import Event
+from google.genai import types
+
 from a2a.server.agent_execution import AgentExecutor
+from a2a.server.agent_execution.context import RequestContext
 from a2a.server.events.event_queue import EventQueue
+from a2a.server.tasks import TaskUpdater
 from a2a.types import (
     AgentCard,
     FilePart,
     FileWithBytes,
     FileWithUri,
     Part,
-    UnsupportedOperationError,
     TaskState,
     TextPart,
+    UnsupportedOperationError,
 )
-from a2a.utils import TaskUpdater
 from a2a.utils.errors import ServerError
 from a2a.utils.message import new_agent_text_message
-
-from google.adk import Runner
-from google.adk.events import Event
-from google.adk.auth import AuthConfig
-from google.genai import types
-from urllib.parse import urlparse, parse_qs
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
