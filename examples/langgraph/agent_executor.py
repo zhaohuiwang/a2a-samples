@@ -4,7 +4,6 @@ from typing_extensions import override
 from a2a.server.agent_execution import AgentExecutor, RequestContext
 from a2a.server.events.event_queue import EventQueue
 from a2a.types import (
-    Task,
     TaskArtifactUpdateEvent,
     TaskState,
     TaskStatus,
@@ -93,6 +92,6 @@ class CurrencyAgentExecutor(AgentExecutor):
 
     @override
     async def cancel(
-        self, request: RequestContext, event_queue: EventQueue
-    ) -> Task | None:
+        self, context: RequestContext, event_queue: EventQueue
+    ) -> None:
         raise Exception('cancel not supported')
