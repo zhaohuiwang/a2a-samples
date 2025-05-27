@@ -28,8 +28,6 @@ Examples of unacceptable behavior by participants include:
 *   Public or private harassment
 *   Publishing others' private information, such as a physical or electronic
     address, without explicit permission
-*   Disrespecting the community's time by sending spam or other unsolicited
-    commercial messages
 *   Other conduct which could reasonably be considered inappropriate in a
     professional setting
 
@@ -92,4 +90,7 @@ harassment or threats to anyone's safety, we may take action without notice.
 
 This Code of Conduct is adapted from the Contributor Covenant, version 1.4,
 available at
-https://www.contributor-covenant.org/version/1/4/code-of-conduct/
+https://www.contributor-covenant.org/version/1/4/code-of-conduct.html
+
+Note: A version of this file is also available in the
+[New Project repo](https://github.com/google/new-project/blob/master/docs/code-of-conduct.md).

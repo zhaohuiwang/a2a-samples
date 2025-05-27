@@ -1,6 +1,8 @@
-Fixes #<issue_number_goes_here>
+# Description
 
-> It's a good idea to open an issue first for discussion.
+Thank you for opening a Pull Request!
+Before submitting your PR, there are a few things you can do to make sure it goes smoothly:
 
-- [ ] Tests pass
-- [ ] Appropriate changes to documentation are included in the PR
+- [ ] Follow the [`CONTRIBUTING` Guide](https://github.com/google-a2a/a2a-samples/blob/main/CONTRIBUTING.md).
+
+Fixes #<issue_number_goes_here> 🦕
