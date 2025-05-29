@@ -1,24 +1,17 @@
-import logging  # Import the logging module
+import logging
 
 from typing import Any
 from uuid import uuid4
 
-# --8<-- [start:A2ACardResolver]
 import httpx
 
 from a2a.client import A2ACardResolver, A2AClient
-
-# --8<-- [end:A2ACardResolver]
-# --8<-- [start:send_message]
 from a2a.types import (
     AgentCard,
     MessageSendParams,
     SendMessageRequest,
     SendStreamingMessageRequest,
 )
-
-
-# --8<-- [end:send_message]
 
 
 async def main() -> None:
