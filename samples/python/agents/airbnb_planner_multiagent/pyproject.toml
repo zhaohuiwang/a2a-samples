@@ -10,10 +10,10 @@ dependencies = [
     "google-adk>=1.0.0",
     "gradio>=5.30.0",
     "langchain-google-genai>=2.1.5",
-    "langchain-mcp-adapters>=0.1.1",
+    "langchain-mcp-adapters>=0.0.9",
     "langchain-google-vertexai>=2.0.24",
     "langgraph>=0.4.5",
-    "mcp>=1.4.0,<1.6",
+    "mcp>=1.5.0",
     "a2a-samples",
 ]
 
