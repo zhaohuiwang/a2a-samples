@@ -29,6 +29,7 @@ members = [
     "hosts/cli",
     "hosts/extended_agent_card_cli",
     "hosts/multiagent",
+    "agents/airbnb_planner_multiagent",
     "agents/llama_index_file_chat",
     "agents/semantickernel",
     "agents/mindsdb",

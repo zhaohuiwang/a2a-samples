@@ -46,28 +46,28 @@ WEA_AGENT_URL=http://localhost:10001
 
 
 
-## 1. Run Airbnb server
+## 1. Run Airbnb Agent
 
-Run Remote server
+Run the airbnb agent server:
 
 ```bash
-cd airbnb_agent
+cd samples/python/agents/airbnb_planner_multiagent/airbnb_agent
 uv run .
 ```
 
-## 2. Run Weather server
-Open a new terminal, go to `a2a-adk-app` folder run the server
+## 2. Run Weather Agent
+Open a new terminal and run the weather agent server:
 
 ```bash
-cd weather_agent
+cd samples/python/agents/airbnb_planner_multiagent/weather_agent
 uv run .
 ```
 
 ## 3. Run Host Agent
-Open a new terminal, go to `a2a-adk-app` folder run the server
+Open a new terminal and run the host agent server
 
 ```bash
-cd host_agent
+cd samples/python/agents/airbnb_planner_multiagent/host_agent
 uv run app.py
 ```
 
