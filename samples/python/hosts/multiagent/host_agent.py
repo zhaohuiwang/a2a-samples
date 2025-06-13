@@ -46,6 +46,7 @@ class HostAgent:
         self.remote_agent_connections: dict[str, RemoteAgentConnections] = {}
         self.cards: dict[str, AgentCard] = {}
         task_group = asyncio.TaskGroup()
+        self.agents: str = ''
         for address in remote_agent_addresses:
             task_group.create_task(self.retrieve_card(address))
         # The task groups run in the background and complete.
@@ -53,7 +54,7 @@ class HostAgent:
         # connections are established.
 
     async def retrieve_card(self, address: str):
-        card_resolver = A2ACardResolver(self.http_client, address)
+        card_resolver = A2ACardResolver(self.httpx_client, address)
         card = await card_resolver.get_agent_card()
         self.register_agent_card(card)
 
