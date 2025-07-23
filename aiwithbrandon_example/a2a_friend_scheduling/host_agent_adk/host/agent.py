@@ -1,3 +1,13 @@
+
+"""
+HTTPX is a fully featured HTTP client library for Python 3. It includes an integrated command line client, has support for both HTTP/1.1 and HTTP/2 (request does not), and provides both sync and async APIs (request does not).
+For simple, synchronous tasks or quick scripting, Requests remains an excellent and straightforward choice.
+For applications requiring high performance, concurrency, or leveraging modern features like HTTP/2, HTTPX is the more suitable and future-proof option.
+
+
+
+"""
+
 import asyncio
 import json
 import uuid
@@ -82,11 +92,14 @@ class HostAgent:
         cls,
         remote_agent_addresses: List[str],
     ):
+        """ basically creating a initial instance of the host agent. """
+
         instance = cls()
         await instance._async_init_components(remote_agent_addresses)
         return instance
-
-    def create_agent(self) -> Agent:
+    
+    def create_agent(self) -> Agent:  
+        """ creating a ADK agent """
         return Agent(
             model="gemini-2.5-flash-preview-04-17",
             name="Host_Agent",
@@ -98,6 +111,7 @@ class HostAgent:
                 list_court_availabilities,
             ],
         )
+ 
 
     def root_instruction(self, context: ReadonlyContext) -> str:
         return f"""
@@ -249,3 +263,22 @@ def _get_initialized_host_agent_sync():
 
 
 root_agent = _get_initialized_host_agent_sync()
+
+
+"""
+A python host agent who is responsible for handling all the remote connections.
+An ADK agent 
+
+Remote agenst - three
+All have tools to list their availbilities
+Wrap the remote agent and tools into an agent executor, the kick off the remote server.
+    Agent card which include all the skills
+    Agent executor
+    Request handler
+    A2AStarletteApplication
+    uvicorn.run(seerver ...)
+
+
+
+
+"""

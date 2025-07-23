@@ -67,7 +67,7 @@ def get_availability(start_date: str, end_date: str) -> str:
 def create_agent() -> LlmAgent:
     """Constructs the ADK agent for Karley."""
     return LlmAgent(
-        model="gemini-2.5-flash-preview-04-17",
+        model="gemini-2.5-flash",
         name="Karley_Agent",
         instruction="""
             **Role:** You are Karley's personal scheduling assistant. 
