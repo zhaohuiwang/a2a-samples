@@ -1,11 +1,12 @@
 [project]
-name = "karley-scheduling-agent"
+name = "karley-agent-adk"
 version = "0.1.0"
-description = "Karley's scheduling agent for the A2A project."
-requires-python = ">=3.10"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
 dependencies = [
-    "a2a-sdk>=0.2.5",
-    "google-adk>=1.2.1",
-    "python-dotenv",
-    "uvicorn",
-] 
+    "a2a-sdk>=0.2.16",
+    "google-adk>=1.7.0",
+    "python-dotenv>=1.1.1",
+    "uvicorn>=0.35.0",
+]
