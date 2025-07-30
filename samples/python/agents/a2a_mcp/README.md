@@ -173,6 +173,10 @@ bash samples/python/agents/a2a_mcp/run.sh
    source .venv/bin/activate
    # Runs on port 10100 by default, change as needed by setting the --host and --port parameters.
    uv run  --env-file .env a2a-mcp --run mcp-server --transport sse
+
+   # a2a-mcp = "a2a_mcp:main" as defined in [project.scripts] in pyproject.toml
+   # "main" is defined in __init__.py
+
    ```
 
 2. Start the Orchestrator Agent:

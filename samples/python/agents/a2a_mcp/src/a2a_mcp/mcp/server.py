@@ -6,19 +6,39 @@ import traceback
 
 from pathlib import Path
 
-import google.generativeai as genai
+import httpx
+from google import genai
 import numpy as np
 import pandas as pd
-import requests
 
-from a2a_mcp.common.utils import init_api_key
+
+#from a2a_mcp.common.utils import init_api_key
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.utilities.logging import get_logger
 
 
+
+from dotenv import load_dotenv, set_key
+
+
+# Define the path to the .env file
+env_file_path = Path(__file__).parent.parent.parent.parent / ".env"
+
+# Load environment variables from the specified .env file
+load_dotenv(dotenv_path=env_file_path)
+GEMINI_API_KEY = os.getenv("GOOGLE_API_KEY")
+
+client = genai.Client(api_key=GEMINI_API_KEY)
+
 logger = get_logger(__name__)
+
 AGENT_CARDS_DIR = 'agent_cards'
-MODEL = 'models/embedding-001'
+MODEL = 'models/gemini-embedding-001'
+# Embedding models
+# Generally available model: gemini-embedding-001
+# embedding-001 (Deprecating on August 14, 2025)
+# text-embedding-004 (Deprecating on January 14, 2026)
+
 SQLLITE_DB = 'travel_agency.db'
 PLACES_API_URL = 'https://places.googleapis.com/v1/places:searchText'
 
@@ -32,11 +52,14 @@ def generate_embeddings(text):
     Returns:
         A list of embeddings representing the input text.
     """
-    return genai.embed_content(
+    result = client.models.embed_content(
         model=MODEL,
-        content=text,
-        task_type='retrieval_document',
-    )['embedding']
+        contents=text,
+        config=genai.types.EmbedContentConfig(
+            task_type="RETRIEVAL_DOCUMENT"
+            ),
+    )
+    return result.embeddings
 
 
 def load_agent_cards():
@@ -124,7 +147,7 @@ def serve(host, port, transport):  # noqa: PLR0915
     Raises:
         ValueError: If the 'GOOGLE_API_KEY' environment variable is not set.
     """
-    init_api_key()
+    #init_api_key()
     logger.info('Starting Agent Cards MCP Server')
     mcp = FastMCP('agent-cards', host=host, port=port)
 
@@ -184,22 +207,23 @@ def serve(host, port, transport):  # noqa: PLR0915
         }
 
         try:
-            response = requests.post(
-                PLACES_API_URL, headers=headers, json=payload
-            )
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.HTTPError as http_err:
+            with httpx.Client() as client:
+                response = client.post(
+                    PLACES_API_URL, headers=headers, json=payload
+                    )
+                response.raise_for_status()
+                return response.json()
+        except httpx.HTTPStatusError as http_err:
             logger.info(f'HTTP error occurred: {http_err}')
             logger.info(f'Response content: {response.text}')
-        except requests.exceptions.ConnectionError as conn_err:
+        except httpx.ConnectError as conn_err:
             logger.info(f'Connection error occurred: {conn_err}')
-        except requests.exceptions.Timeout as timeout_err:
+        except httpx.TimeoutException as timeout_err:
             logger.info(f'Timeout error occurred: {timeout_err}')
-        except requests.exceptions.RequestException as req_err:
+        except httpx.RequestError as req_err:
             logger.info(
                 f'An unexpected error occurred with the request: {req_err}'
-            )
+                )
         except json.JSONDecodeError:
             logger.info(
                 f'Failed to decode JSON response. Raw response: {response.text}'
