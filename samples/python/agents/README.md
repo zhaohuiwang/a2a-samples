@@ -39,6 +39,9 @@ Demonstrates how to implement a travel agent built on [Semantic Kernel](https://
 * [**travel planner Agent**](/samples/python/agents/travel_planner_agent/README.md)  
 A travel assistant demo implemented based on Google's official [a2a-python](https://github.com/google/a2a-python) SDK, And Implemented through the A2A protocol.
 
+* [**Any-Agent Adversarial Multi-Agent**](/samples/python/agents/any_agent_adversarial_multiagent/README.md)  
+Demonstrates an adversarial multi-agent system with competing attacker and defender agents using the A2A protocol and any-agent library.
+
 * [**Content Planner Agent**](/samples/python/agents/content_planner/README.md)  
 Sample agent that creates a detailed content outline given a high-level description of the content that's needed by using Google Search and the Google ADK.
 
