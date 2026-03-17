@@ -7,7 +7,7 @@ _ROOT_DIR = Path(__file__).parent.parent
 
 
 def spawn_agent(http_port: int, grpc_port: int) -> subprocess.Popen:
-    """Spawns the Go v0.3 agent process.
+    """Spawns the Go v1.0 agent process.
 
     Args:
         http_port: The port for the HTTP/JSON-RPC interface.
@@ -26,7 +26,7 @@ def spawn_agent(http_port: int, grpc_port: int) -> subprocess.Popen:
             '--grpcPort',
             str(grpc_port),
         ],
-        cwd=_ROOT_DIR / 'agents/go/v03',
+        cwd=_ROOT_DIR / 'agents/go/v10',
         stderr=subprocess.STDOUT,
         text=True,
     )

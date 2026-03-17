@@ -1,26 +1,8 @@
 import asyncio
-import base64
 import logging
-import subprocess
 import sys
-import time
-import uuid
 
-import click
-import httpx
-
-from a2a.client import ClientConfig, ClientFactory
-from a2a.types import (
-    FilePart,
-    FileWithBytes,
-    Message,
-    Part,
-    Role,
-    TextPart,
-    TransportProtocol,
-)
-from agents.python.v03.pyproto import instruction_pb2
-from test_suite import create_test_suite
+from testlib import _clean_ports, execute_itk_test, start_itk_cluster
 
 
 logging.basicConfig(
@@ -28,187 +10,193 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
-def _clean_ports(*ports: str) -> None:
-    """Forcefully kills processes on host ports to ensure fresh startup.
-
-    Args:
-        *ports: Variable length argument list of port numbers (as strings) to clean up.
-
-    """
-    for port in ports:
-        subprocess.run(  # noqa: S603
-            ['fuser', '-k', f'{port}/tcp'],  # noqa: S607
-            capture_output=True,
-            check=False,
-        )
-
-
-def log_process_output(proc: subprocess.Popen, name: str) -> None:
-    """Helper to log some output from a process if it fails or for debugging.
-
-    Args:
-        proc: The process from which to read standard output.
-        name: A human-readable identifier for the process being logged.
-
-    """
-    try:
-        # Read available output without blocking
-        output = proc.stdout.read() if proc.stdout else ''
-        if output:
-            logger.error(
-                '--- %s Output ---\n%s\n-------------------', name, output
-            )
-    except Exception:  # noqa: BLE001
-        logger.debug('Failed to read %s output', name, exc_info=True)
-
-
-def wrap_instruction(instruction: instruction_pb2.Instruction) -> Message:
-    """Wraps a proto instruction into an A2A Message for transport.
-
-    Args:
-        instruction: The instruction protobuf to wrap.
-
-    Returns:
-        Message: An initialized A2A Message with the serialized instruction logic.
-
-    """
-    inst_bytes = instruction.SerializeToString()
-    b64_inst = base64.b64encode(inst_bytes).decode('utf-8')
-    return Message(
-        role=Role.user,
-        message_id=str(uuid.uuid4()),
-        parts=[
-            Part(
-                root=FilePart(
-                    file=FileWithBytes(
-                        bytes=b64_inst,
-                        mime_type='application/x-protobuf',
-                        name='instruction.bin',
-                    )
-                )
-            )
+# Hardcoded test case definitions
+TEST_CASES = [
+    {
+        'name': 'v03-core',
+        'sdks': ['python_v03', 'go_v03'],
+        'traversal': 'euler',
+        'edges': None,
+        'protocols': ['jsonrpc', 'grpc'],
+    },
+    {
+        'name': 'v03-core-streaming',
+        'sdks': ['python_v03', 'go_v03'],
+        'traversal': 'euler',
+        'edges': None,
+        'protocols': ['jsonrpc', 'grpc'],
+        'streaming': True,
+    },
+    {
+        'name': 'v10-core',
+        'sdks': ['python_v10', 'go_v10'],
+        'protocols': ['http_json', 'jsonrpc', 'grpc'],
+        'traversal': 'euler',
+        'edges': None,
+    },
+    {
+        'name': 'v10-core-streaming',
+        'sdks': ['python_v10', 'go_v10'],
+        'protocols': ['jsonrpc', 'grpc', 'http_json'],
+        'traversal': 'euler',
+        'edges': None,
+        'streaming': True,
+    },
+    {
+        'name': 'python-v03-v10-all-transports',
+        'sdks': ['python_v03', 'python_v10'],
+        'protocols': ['jsonrpc', 'grpc', 'http_json'],
+        'traversal': 'euler',
+        'edges': None,
+    },
+    {
+        'name': 'python-v03-v10-all-transports-streaming',
+        'sdks': ['python_v03', 'python_v10'],
+        'protocols': ['jsonrpc', 'grpc', 'http_json'],
+        'traversal': 'euler',
+        'edges': None,
+        'streaming': True,
+    },
+    {
+        'name': 'python-v03-go-v03-python-v10-hub-all-common-transports',
+        'sdks': ['python_v03', 'go_v03', 'python_v10'],
+        'protocols': ['jsonrpc', 'grpc'],
+        'traversal': 'euler',
+        'edges': ['2->0', '2->1', '0->2', '1->2'],
+    },
+    {
+        'name': 'python-v03-go-v03-python-v10-hub-all-common-transports-streaming',
+        'sdks': ['python_v03', 'go_v03', 'python_v10'],
+        'protocols': ['jsonrpc', 'grpc'],
+        'traversal': 'euler',
+        'edges': ['2->0', '2->1', '0->2', '1->2'],
+        'streaming': True,
+    },
+    {
+        'name': 'full-backwards-compat-with-jsonrpc',
+        'sdks': ['python_v03', 'go_v03', 'python_v10', 'go_v10'],
+        'protocols': ['jsonrpc'],
+        'traversal': 'euler',
+        'edges': [
+            '3->0',
+            '3->1',
+            '2->0',
+            '2->1',
+            '0->2',
+            '0->3',
+            '1->2',
+            '1->3',
         ],
-    )
+    },
+    {
+        'name': 'full-backwards-compat-with-jsonrpc-streaming',
+        'sdks': ['python_v03', 'go_v03', 'python_v10', 'go_v10'],
+        'protocols': ['jsonrpc'],
+        'traversal': 'euler',
+        'edges': [
+            '3->0',
+            '3->1',
+            '2->0',
+            '2->1',
+            '0->2',
+            '0->3',
+            '1->2',
+            '1->3',
+        ],
+        'streaming': True,
+    },
+    {
+        'name': 'disconnected-components',
+        'sdks': ['python_v03', 'go_v03', 'python_v10', 'go_v10'],
+        'protocols': ['jsonrpc'],
+        'traversal': 'euler',
+        'edges': ['1->3', '3->1', '2->0', '0->2'],
+    },
+    {
+        'name': 'failing-go-v03-http-json',
+        'sdks': ['python_v03', 'python_v10', 'go_v03'],
+        'protocols': ['http_json'],
+        'traversal': 'euler',
+        'edges': None,
+    },
+    {
+        'name': 'failing-go-v10-grpc',
+        'sdks': ['go_v03', 'go_v10'],
+        'protocols': ['grpc'],
+        'traversal': 'euler',
+        'edges': None,
+    },
+]
 
 
-async def check_agent_ready(
-    name: str, url: str, timeout_seconds: int = 35
-) -> bool:
-    """Use A2A SDK to verify agent readiness by attempting to connect.
+async def main_async() -> None:
+    """Execute hardcoded integration test scenarios concurrently."""
+    # 1. Identify all unique SDKs needed across all test cases
+    all_required_sdks = set()
+    for case in TEST_CASES:
+        all_required_sdks.update(case['sdks'])
 
-    Args:
-        name: Name of the agent.
-        url: The URL pointing to the agent's well-known root.
-        timeout_seconds: Duration in seconds to wait for readiness. Defaults to 35.
+    # Convert to sorted list for deterministic port assignment
+    # (Though AGENT_DEFS currently have static ports anyway)
+    sdk_list = sorted(all_required_sdks)
 
-    Returns:
-        bool: True if connected successfully within the timeout, otherwise False.
+    # 2. Start the shared cluster
+    procs, _uris, ports = await start_itk_cluster(sdk_list)
 
-    """
-    start = time.time()
-    async with httpx.AsyncClient(timeout=10) as http_client:
-        config = ClientConfig()
-        config.httpx_client = http_client
-        while time.time() - start < timeout_seconds:
-            try:
-                # ClientFactory.connect resolves the card and verifies connectivity
-                client = await ClientFactory.connect(url, client_config=config)
-                if client:
-                    logger.info('%s is ready at %s', name, url)
-                    return True
-            except Exception:  # noqa: BLE001
-                logger.debug('%s at %s not ready yet', name, url, exc_info=True)
-            await asyncio.sleep(1.0)
-    return False
-
-
-async def main_async(sdks: str, traversal: str) -> None:
-    """Execute the multi-agent integration test traversal."""
-    tested_sdks = [s.strip() for s in sdks.split(',')]
-    (
-        test_instruction,
-        ports,
-        agent_launchers,
-        agent_card_uris,
-        expected_end_tokens,
-    ) = create_test_suite(tested_sdks, logger, traversal)
-    _clean_ports(*ports)
-    agent_procs = [launcher() for launcher in agent_launchers]
-
-    logger.info('Initializing integration test...')
+    # 3. Retrieve and print API schema from the first agent
 
     try:
-        logger.info('Waiting for agent cluster stability...')
-        # Check readiness using SDK connect
-        for sdk, url, agent_proc in zip(
-            tested_sdks, agent_card_uris, agent_procs, strict=True
+        # 3. Define the test tasks
+        tasks = [
+            execute_itk_test(
+                sdks=case['sdks'],
+                traversal=case['traversal'],
+                edges=case['edges'],
+                scenario_name=case['name'],
+                protocols=case.get('protocols'),
+                streaming=case.get('streaming', False),
+            )
+            for case in TEST_CASES
+        ]
+
+        # 4. Run all scenarios concurrently against the shared cluster
+        logger.info('Starting concurrent scenario execution...')
+        results = await asyncio.gather(*tasks)
+
+        # 5. Report results
+        all_passed = True
+        for idx, (case, passed) in enumerate(
+            zip(TEST_CASES, results, strict=True)
         ):
-            is_ready = await check_agent_ready(sdk, url)
-            if not is_ready:
-                log_process_output(agent_proc, sdk)
-                raise RuntimeError(f'{sdk} agent failed SDK readiness check.')  # noqa: TRY301
-
-        logger.info('Cluster ready. Executing cross-SDK traversal test...')
-
-        msg = wrap_instruction(test_instruction)
-
-        async with httpx.AsyncClient(timeout=120) as http_client:
-            config = ClientConfig()
-            config.httpx_client = http_client
-            config.supported_transports = [TransportProtocol.jsonrpc]
-
-            client = await ClientFactory.connect(
-                agent_card_uris[0], client_config=config
-            )
-
-            responses = []
+            status = 'PASSED' if passed else 'FAILED'
             logger.info(
-                'Dispatching test payload to %s via JSON-RPC...',
-                agent_card_uris[0],
+                "Scenario %s/%s '%s': %s",
+                idx + 1,
+                len(TEST_CASES),
+                case['name'],
+                status,
             )
-            async for resp in client.send_message(msg):
-                if isinstance(resp, Message):
-                    responses.extend(
-                        part.root.text
-                        for part in resp.parts
-                        if isinstance(part.root, TextPart)
-                    )
+            if not passed:
+                all_passed = False
 
-            full_response = ''.join(responses).strip()
-            logger.info('Test Result: %s', full_response)
-
-            if all(token in full_response for token in expected_end_tokens):
-                logger.info('--- INTEGRATION TEST PASSED ---')
-            else:
-                logger.error(
-                    '--- INTEGRATION TEST FAILED: Some verification tokens missing ---'
-                )
-                for sdk, agent_proc in zip(
-                    tested_sdks, agent_procs, strict=True
-                ):
-                    log_process_output(agent_proc, sdk)
-                sys.exit(1)
+        if not all_passed:
+            logger.error('One or more test scenarios failed.')
+        else:
+            logger.info('All test scenarios passed.')
 
     except Exception:
-        logger.exception('Integration test aborted due to error.')
-        # Attempt to log process outputs
-        for sdk, agent_proc in zip(tested_sdks, agent_procs, strict=True):
-            log_process_output(agent_proc, sdk)
+        logger.exception('Concurrent test execution encountered an error.')
         sys.exit(1)
     finally:
-        logger.info('Decommissioning agents...')
-        for proc in agent_procs:
+        logger.info('Decommissioning shared agent cluster...')
+        for proc in procs:
             proc.terminate()
         _clean_ports(*ports)
 
 
-@click.command()
-@click.option('--sdks', default='python_v03,go_v03')
-@click.option('--traversal', default='euler')
-def main(sdks: str, traversal: str) -> None:
-    """Execute the multi-agent integration test traversal."""
-    asyncio.run(main_async(sdks, traversal))
+def main() -> None:
+    """Entry point for the integration test orchestrator."""
+    asyncio.run(main_async())
 
 
 if __name__ == '__main__':
